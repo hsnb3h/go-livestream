@@ -1,0 +1,48 @@
+FROM ubuntu
+
+ENV DEBIAN_FRONTEND noninteractive
+
+
+RUN apt-get update -y   --allow-unauthenticated --allow-insecure-repositories
+RUN apt-get install software-properties-common -y  --allow-unauthenticated
+RUN add-apt-repository ppa:savoury1/ffmpeg5
+RUN add-apt-repository ppa:savoury1/ffmpeg4
+RUN add-apt-repository ppa:saiarcot895/chromium-beta -y
+
+RUN apt-get install -y --allow-unauthenticated \
+    curl \
+    sudo \
+    pulseaudio \
+    xvfb \
+    libnss3-tools \
+    libxcb1 \
+    libxcb1-dev \
+    ffmpeg \
+    xdotool \
+    unzip \
+    x11vnc \
+    libfontconfig \
+    libfreetype6 \
+    xfonts-cyrillic \
+    xfonts-scalable \
+    fonts-liberation \
+    fonts-ipafont-gothic \
+    fonts-wqy-zenhei \
+    socat \
+    xserver-xorg-video-dummy \
+    x11-apps \
+    xpra 
+
+
+RUN apt-get update --allow-unauthenticated --allow-insecure-repositories
+RUN apt-get install chromium-browser  --allow-unauthenticated  -y
+RUN apt-get install golang-go -y
+
+
+WORKDIR /app
+COPY . . 
+
+RUN go build
+RUN chmod +x /app/run-live.sh
+
+CMD ["/app/run-live.sh"]

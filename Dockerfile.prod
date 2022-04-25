@@ -1,0 +1,63 @@
+FROM golang:1.18-alpine as builder
+WORKDIR /myapp
+
+COPY go.mod . 
+COPY go.sum .
+
+RUN apk add --no-cache ca-certificates git
+
+# Get dependancies - will also be cached if we won't change mod/sum
+RUN go mod download
+
+COPY . .
+RUN CGO_ENABLED=0 GOARCH=amd64 go install -installsuffix "static" ./...
+
+FROM ubuntu:trusty
+ENV LANG="C.UTF-8"
+
+# install utilities
+RUN apt-get update
+RUN apt-get -y install wget --fix-missing
+RUN apt-get -y install xvfb xorg xvfb firefox dbus-x11 xfonts-100dpi xfonts-75dpi xfonts-cyrillic --fix-missing # chrome will use this to run headlessly
+RUN apt-get -y install unzip --fix-missing
+RUN cat /etc/resolv.conf
+RUN cat /etc/hosts
+
+# install go
+RUN wget -O - https://storage.googleapis.com/golang/go1.18.linux-amd64.tar.gz | tar xz -C /usr/local/
+ENV PATH="$PATH:/usr/local/go/bin"
+
+# install dbus - chromedriver needs this to talk to google-chrome
+RUN apt-get -y install dbus --fix-missing
+RUN apt-get -y install dbus-x11 --fix-missing
+RUN ln -s /bin/dbus-daemon /usr/bin/dbus-daemon     # /etc/init.d/dbus has the wrong location
+RUN ln -s /bin/dbus-uuidgen /usr/bin/dbus-uuidgen   # /etc/init.d/dbus has the wrong location
+
+# install chrome
+RUN wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add -
+RUN sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google-chrome.list'
+RUN apt-get install software-properties-common -y  --allow-unauthenticated
+RUN add-apt-repository ppa:saiarcot895/chromium-beta -y
+RUN apt-get update
+RUN apt-get -y install google-chrome-stable chromium-browser
+
+# install chromedriver
+# NOTE: this is a relatively old version.  Try a newer version if this does not work.
+RUN wget -N https://chromedriver.storage.googleapis.com/101.0.4951.15/chromedriver_linux64.zip
+RUN unzip chromedriver_linux64.zip
+RUN chmod +x chromedriver
+RUN mv -f chromedriver /usr/bin/chromedriver
+
+RUN sudo add-apt-repository ppa:mc3man/trusty-media
+RUN sudo apt-get -y update
+RUN sudo apt-get -y install ffmpeg gstreamer0.10-ffmpeg
+RUN sudo apt-get -y install pulseaudio
+
+# ENV DISPLAY=:99
+# ENV XVFB_WHD=1440x810x24
+
+RUN apt-get install -y ca-certificates tzdata
+COPY --from=builder /go/bin /bin
+COPY /run-live.sh /
+RUN chmod +x /run-live.sh
+CMD ["./run-live.sh"]
