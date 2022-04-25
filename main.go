@@ -19,6 +19,7 @@ func main() {
 	APARAT_URL := "rtmp://rtmp.cdn.asset.aparat.com:443/event/e4a035237879741166eb3db92b7044377?s=6587f3a42091cce0"
 
 	log.Println("Opening Chrome")
+	loadPulseaudio()
 	opts := append(chromedp.DefaultExecAllocatorOptions[:],
 		chromedp.NoFirstRun,
 		chromedp.NoDefaultBrowserCheck,
@@ -121,11 +122,11 @@ func startFfmpegCommand(token string) {
 	cmd := exec.Command(
 		"ffmpeg",
 		"-f",
-		"pulse",
+		"alsa",
 		"-ac",
-		" 2",
+		"2",
 		"-i",
-		"default",
+		"hw:0",
 		"-f",
 		"x11grab",
 		"-video_size",
@@ -133,7 +134,7 @@ func startFfmpegCommand(token string) {
 		"-framerate",
 		"24",
 		"-i",
-		":44",
+		":1",
 		"-codec:v",
 		"libx264",
 		"-pix_fmt",
@@ -170,4 +171,23 @@ func startFfmpegCommand(token string) {
 	// 	fmt.Println(m)
 	// }
 	cmd.Wait()
+}
+
+func loadPulseaudio() {
+	cmd := exec.Command(
+		"pulseaudio", "--fail", "-D", "--exit-idle-time=-1",
+	)
+	cmd.Start()
+	cmd = exec.Command(
+		"pacmd", "load-module", "module-virtual-sink", "sink_name=v1",
+	)
+	cmd.Start()
+	cmd = exec.Command(
+		"pacmd", "set-default-sink", "v1",
+	)
+	cmd.Start()
+	cmd = exec.Command(
+		"pacmd", "set-default-source", "v1.monitor",
+	)
+
 }
